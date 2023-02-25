@@ -1,17 +1,17 @@
-from main import bot, dp, types, db
+from telegram_bot.bot.main import bot, dp, types, db
 from aiogram.types import Message, LabeledPrice, PreCheckoutQuery
 from aiogram.dispatcher.filters import Text, Command
 from aiogram.types.message import ContentType
-from config import admin_id
-from config import API_TOKEN, PAYMENTS_TOKEN, item_url
-from TEXT import MESSAGES
-from Markups import main_Menu, Keyboard_inline
+from telegram_bot.bot.config import admin_id, API_TOKEN, PAYMENTS_TOKEN, item_url
+from telegram_bot.bot.info import MESSAGES
+from telegram_bot.bot.markups.Markups import main_Menu, Keyboard_inline, ReplyKeyboardRemove
 
 PRICES = [LabeledPrice(label='Справка', amount = 1000000)]
 
 
 async def send_hello(dp):
     await bot.send_message(chat_id=admin_id, text = 'Бот запущен')
+
 
 @dp.message_handler(Command('buy'))
 async def buy_process(message: Message):
@@ -31,9 +31,11 @@ async def buy_process(message: Message):
                           start_parameter = 'example',
                           payload = 'some_invoice')
 
+
 @dp.pre_checkout_query_handler(lambda query: True)
 async def checkout_process(pre_checkout_query: PreCheckoutQuery):
     await bot.answer_pre_checkout_query(pre_checkout_query.id, ok=True)
+
 
 @dp.message_handler(content_types=ContentType.SUCCESSFUL_PAYMENT)
 async def succesful_payment(message: Message):
@@ -43,28 +45,31 @@ async def succesful_payment(message: Message):
 
 @dp.message_handler(Command('start'))
 async def start_menu(message: Message):
-    if(not db.user_exists(message.from_user.id)):
+    if (not db.user_exists(message.from_user.id)):
         db.add_user(message.from_user.id)
         await bot.send_message(message.from_user.id, f"Здравствуйте, {username} ! Пожалуйста, укажите вашу почту", reply_markup=main_Menu)
     await message.bot.send_message(message.from_user.id, MESSAGES['HELLO'], reply_markup=main_Menu)
+
 
 @dp.message_handler(Text(equals=['user_btn', 'help_btn', 'join_btn']))
 async def bottons(message: Message):
     await message.answer(message.text, reply_markup=ReplyKeyboardRemove())
     await message.delete()
 
+
 @dp.message_handler(Text(equals=['📕 Помощь', '🆕 Карточка клиента', '💵 Получить услугу']))
 async def kb_answers(message: Message):
     if message.text == '📕 Помощь':
-        await message.answer(MESSAGES ['INFO'])
+        await message.answer(MESSAGES['INFO'])
     elif message.text == '🆕 Карточка клиента':
         await message.answer('Для дальнейших действий,укажите пожалуйста вашу электронную почту, а также введите команду /broker и выберите вашего брокера из списка ')
     elif message.text == '💵 Получить услугу':
         await message.answer('Чтобы получить услугу, пожалуйста введите команду /buy и следуйте дайльнейшим инструкциям')
 
+
 @dp.message_handler(Text(equals=['@']))
 async def mail(message: Message):
-    await message.answer(message.text, text= 'Почта успешна добавлена!')
+    await message.answer(message.text, text='Почта успешна добавлена!')
     await message.delete()
 
 
@@ -80,24 +85,24 @@ async def broker_choice(message: Message):
     await message.reply('Пожалуйста, выберите вашего брокера из списка', reply_markup=Keyboard_inline)
 
 
-@dp.callback_query_handler(text = ['bks','open','vtb','tnkf'])
+@dp.callback_query_handler(text=['bks', 'open', 'vtb', 'tnkf'])
 async def broker_value(call: types.CallbackQuery):
     if call.data == 'bks':
-        await call.message.answer("Вы выбрали БКС Брокер. Так держать! Осталось отправить в чат выписку из банка в формате pdf и произвести оплату по команду /buy ")
+        await call.message.answer("Вы выбрали БКС Брокер. Так держать!\nОсталось отправить в чат выписку из банка в формате pdf и\nпроизвести оплату по команде /buy ")
     if call.data == 'open':
-        await call.message.answer("Вы выбрали Открытие. Так держать! Осталось отправить в чат выписку из банка в формате pdf и произвести оплату по команду /buy ")
+        await call.message.answer("Вы выбрали Открытие. Так держать!\nОсталось отправить в чат выписку из банка в формате pdf и\nпроизвести оплату по команде /buy ")
     if call.data == 'vtb':
-        await call.message.answer("Вы выбрали ВТБ Капитал Форекс. Так держать! Осталось отправить в чат выписку из банка в формате pdf и произвести оплату по команду /buy ")
+        await call.message.answer("Вы выбрали ВТБ Капитал Форекс. Так держать!\nОсталось отправить в чат выписку из банка в формате pdf и\nпроизвести оплату по команде /buy ")
     if call.data == 'tnkf':
-        await call.message.answer("Вы выбрали Тинькофф Инвестиции. Так держать! Осталось отправить в чат выписку из банка в формате pdf и произвести оплату по команду /buy ")
+        await call.message.answer("Вы выбрали Тинькофф Инвестиции. Так держать!\nОсталось отправить в чат выписку из банка в формате pdf и\nпроизвести оплату по команде /buy ")
     if call.data == 'alfa':
-        await call.message.answer("Вы выбрали Альфа Инвестиции. Так держать! Осталось отправить в чат выписку из банка в формате pdf и произвести оплату по команду /buy ")
+        await call.message.answer("Вы выбрали Альфа Инвестиции. Так держать!\nОсталось отправить в чат выписку из банка в формате pdf и\nпроизвести оплату по команде /buy ")
     if call.data == 'freadom':
-        await call.message.answer("Вы выбрали Фридом Финанс. Так держать! Осталось отправить в чат выписку из банка в формате pdf и произвести оплату по команду /buy ")
+        await call.message.answer("Вы выбрали Фридом Финанс. Так держать!\nОсталось отправить в чат выписку из банка в формате pdf и\nпроизвести оплату по команде /buy ")
     if call.data == 'finam':
-        await call.message.answer("Вы выбрали Финам. Так держать! Осталось отправить в чат выписку из банка в формате pdf и произвести оплату по команду /buy ")
+        await call.message.answer("Вы выбрали Финам. Так держать!\nОсталось отправить в чат выписку из банка в формате pdf и\nпроизвести оплату по команде /buy ")
     if call.data == 'capital':
-        await call.message.answer("Вы выбрали IT Capital. Так держать! Осталось отправить в чат выписку из банка в формате pdf и произвести оплату по команду /buy ")
+        await call.message.answer("Вы выбрали IT Capital. Так держать!\nОсталось отправить в чат выписку из банка в формате pdf и\nпроизвести оплату по команде /buy ")
     await call.answer()
 
 
