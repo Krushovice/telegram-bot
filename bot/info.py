@@ -30,3 +30,8 @@ MESSAGES = {
     'tm_title': item_title,
     'tm_description': item_description
 }
+
+
+STATEMENTS = {
+
+}

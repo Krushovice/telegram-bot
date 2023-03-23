@@ -1,16 +1,12 @@
 from telegram_bot.bot.main import bot, dp, types, db
-from aiogram.types import Message, LabeledPrice, PreCheckoutQuery
+from aiogram.types import Message, LabeledPrice, PreCheckoutQuery, Document
 from aiogram.dispatcher.filters import Text, Command
 from aiogram.types.message import ContentType
-from telegram_bot.bot.config import admin_id, API_TOKEN, PAYMENTS_TOKEN, item_url
-from telegram_bot.bot.info import MESSAGES
+from telegram_bot.bot.config import PAYMENTS_TOKEN, item_url
+from telegram_bot.bot.info import MESSAGES, STATEMENTS
 from telegram_bot.bot.markups.Markups import main_Menu, Keyboard_inline, ReplyKeyboardRemove
 
 PRICES = [LabeledPrice(label='Справка', amount = 1000000)]
-
-
-async def send_hello(dp):
-    await bot.send_message(chat_id=admin_id, text = 'Бот запущен')
 
 
 @dp.message_handler(Command('buy'))
@@ -28,8 +24,9 @@ async def buy_process(message: Message):
                           need_phone_number=True,
                           is_flexible=False,
                           prices=PRICES,
-                          start_parameter = 'example',
-                          payload = 'some_invoice')
+                          start_parameter='example',
+                          payload='some_invoice'
+                          )
 
 
 @dp.pre_checkout_query_handler(lambda query: True)
@@ -46,9 +43,32 @@ async def succesful_payment(message: Message):
 @dp.message_handler(Command('start'))
 async def start_menu(message: Message):
     if (not db.user_exists(message.from_user.id)):
-        db.add_user(message.from_user.id)
-        await bot.send_message(message.from_user.id, f"Здравствуйте, {username} ! Пожалуйста, укажите вашу почту", reply_markup=main_Menu)
-    await message.bot.send_message(message.from_user.id, MESSAGES['HELLO'], reply_markup=main_Menu)
+        await bot.send_message(message.from_user.id,
+                                f'''Здравствуйте, {message.from_user.full_name}.
+                                Пожалуйста, укажите вашу почту''',
+                                reply_markup=main_Menu)
+
+        await message.bot.send_message(message.from_user.id, f'Здравствуйте, {message.from_user.first_name}',
+                                       reply_markup=main_Menu
+                                       )
+
+
+@dp.message_handler(content_types=types.ContentType.TEXT)
+async def process_email(message: types.Message):
+    # Проверяем, что сообщение содержит корректный email
+    if "@" in message.text:
+        email = message.text
+        db.insert_user(
+        message.from_user.id,
+        message.from_user.full_name,
+        message.from_user.username,
+        email,
+        broker
+        )
+        await message.answer("Спасибо! Я сохранил твой email.")
+    else:
+         # Сообщаем пользователю об ошибке
+        await message.answer("Кажется, это не email. Попробуй еще раз.")
 
 
 @dp.message_handler(Text(equals=['user_btn', 'help_btn', 'join_btn']))
@@ -62,22 +82,9 @@ async def kb_answers(message: Message):
     if message.text == '📕 Помощь':
         await message.answer(MESSAGES['INFO'])
     elif message.text == '🆕 Карточка клиента':
-        await message.answer('Для дальнейших действий,укажите пожалуйста вашу электронную почту, а также введите команду /broker и выберите вашего брокера из списка ')
+        await message.answer('Для дальнейших действий введите команду /broker и выберите вашего брокера из списка ')
     elif message.text == '💵 Получить услугу':
         await message.answer('Чтобы получить услугу, пожалуйста введите команду /buy и следуйте дайльнейшим инструкциям')
-
-
-@dp.message_handler(Text(equals=['@']))
-async def mail(message: Message):
-    await message.answer(message.text, text='Почта успешна добавлена!')
-    await message.delete()
-
-
-    # @dp.message_handler(Command('file'))
-    # async def get_file(message: Message):
-    #     await message.answer('Отлично, вы отправили выписку с вашего банка. Пожалуйста, воспользуйтесь меню команд чтобы произвести оплату')
-    #     file = await dp.get_file(message.document.file_id)
-    #     await dp.download_file(file.file_path,'D:\PythonProjects\Telegram bots\Docs\file_1.pdf')
 
 
 @dp.message_handler(Command('broker'))
@@ -88,53 +95,57 @@ async def broker_choice(message: Message):
 @dp.callback_query_handler(text=['bks', 'open', 'vtb', 'tnkf'])
 async def broker_value(call: types.CallbackQuery):
     if call.data == 'bks':
-        await call.message.answer("Вы выбрали БКС Брокер. Так держать!\nОсталось отправить в чат выписку из банка в формате pdf и\nпроизвести оплату по команде /buy ")
+        broker = 'БКС Брокер.'
+        await call.message.answer("Вы выбрали БКС Брокер. Так держать!\nПожалуйста, отправьте выписку с вашего банка, а далее воспользуйтесь командой /buy")
     if call.data == 'open':
-        await call.message.answer("Вы выбрали Открытие. Так держать!\nОсталось отправить в чат выписку из банка в формате pdf и\nпроизвести оплату по команде /buy ")
+        broker = 'Открытие'
+        await call.message.answer("Вы выбрали Открытие. Так держать!\nПожалуйста, отправьте выписку с вашего банка, а далее воспользуйтесь командой /buy")
     if call.data == 'vtb':
-        await call.message.answer("Вы выбрали ВТБ Капитал Форекс. Так держать!\nОсталось отправить в чат выписку из банка в формате pdf и\nпроизвести оплату по команде /buy ")
+        broker = 'ВТБ Капитал Форекс'
+        await call.message.answer("Вы выбрали ВТБ Капитал Форекс.\nПожалуйста, отправьте выписку с вашего банка, а далее воспользуйтесь командой /buy")
     if call.data == 'tnkf':
-        await call.message.answer("Вы выбрали Тинькофф Инвестиции. Так держать!\nОсталось отправить в чат выписку из банка в формате pdf и\nпроизвести оплату по команде /buy ")
+        broker = 'Тинькофф Инвестиции'
+        await call.message.answer("Вы выбрали Тинькофф Инвестиции.\nПожалуйста, отправьте выписку с вашего банка, а далее воспользуйтесь командой /buy")
     if call.data == 'alfa':
-        await call.message.answer("Вы выбрали Альфа Инвестиции. Так держать!\nОсталось отправить в чат выписку из банка в формате pdf и\nпроизвести оплату по команде /buy ")
+        broker = 'Альфа Инвестиции'
+        await call.message.answer("Вы выбрали Альфа Инвестиции.\nПожалуйста, отправьте выписку с вашего банка, а далее воспользуйтесь командой /buy")
     if call.data == 'freadom':
-        await call.message.answer("Вы выбрали Фридом Финанс. Так держать!\nОсталось отправить в чат выписку из банка в формате pdf и\nпроизвести оплату по команде /buy ")
+        broker = 'Фридом Финанс'
+        await call.message.answer("Вы выбрали Фридом Финанс.\nПожалуйста, отправьте выписку с вашего банка, а далее воспользуйтесь командой /buy")
     if call.data == 'finam':
-        await call.message.answer("Вы выбрали Финам. Так держать!\nОсталось отправить в чат выписку из банка в формате pdf и\nпроизвести оплату по команде /buy ")
+        broker = 'Финам'
+        await call.message.answer("Вы выбрали Финам.\nПожалуйста, отправьте выписку с вашего банка, а далее воспользуйтесь командой /buy")
     if call.data == 'capital':
-        await call.message.answer("Вы выбрали IT Capital. Так держать!\nОсталось отправить в чат выписку из банка в формате pdf и\nпроизвести оплату по команде /buy ")
+        broker = 'IT Capital'
+        await call.message.answer("Вы выбрали IT Capital.\nПожалуйста, отправьте выписку с вашего банка, а далее воспользуйтесь командой /buy")
+    db.insert_broker(call.from_user.id, broker)
     await call.answer()
 
 
+@dp.message_handler(content_types=types.ContentTypes.DOCUMENT)
+async def handle_pdf(message: Message):
+    if message.document.mime_type == 'application/pdf':
+        # Проверяем, что загруженный файл имеет расширение .pdf
+        file_id = message.document.file_id
+        file_unique_id = message.document.file_unique_id
+        file_name = message.document.file_name
+
+        # Сохраняем файл на диск с именем, основанным на полном имени пользователя
+        user_full_name = message.from_user.full_name
+        file_path = f"{user_full_name}_{file_name}"
+        await bot.download_file_by_id(file_id, file_path)
+
+        # Добавляем ссылку на файл в словарь и отправляем пользователю сообщение о том, что файл был успешно сохранен
+        STATEMENTS[user_full_name] = file_path
+        await message.answer("Файл успешно сохранен.")
+    else:
+        # Если загруженный файл не является pdf, сообщаем пользователю об ошибке
+        await message.answer("Файл должен быть в формате PDF.")
 
 
-# @dp.message_handler(commands =['start'])
-# async def start(message: types.Message):
-#     if(not db.user_exists(message.from_user.id)):
-#         db.add_user(message.from_user.id)
-#         await bot.send_message(message.from_user.id, text = HELLO)
-#     else:
-#         await bot.send_message(message.from_user.id,'Вы уже зарегистрированы!', reply_markup=nav.main_Menu)
 
-# @dp.message_handler()
-# async def bot_message(message: types.Message):
-#     if message.chat.type == 'privite':
-#         if message.text == '🆕 Карточка клиента':
-#            user_nickname = "Ваш ник " + db.get_nickname(message.from_user.id)
-#            await bot.send_message(message.from_user.id, user_nickname)
 
-#         else:
-#             if db.get_signup(message.from_user.id)== "setnickname":
-#                 if(len(message.text) >15):
-#                     await bot.send_message(message.from_user.id,'Никнейм не должен превышать 15 символов')
-#                 elif '@' in message.text or '/' in message.text:
-#                     await bot.send_message(message.from_user.id,'Никнейм содержит запрещенный символ')
-#                 else:
-#                     db.set_nickname(message.from_user.id,message.text)
-#                     db.set_signup(message.from_user.id, 'done')
-#                     await bot.send_message(message.from_user.id,'Вы успешно зарегистрированы!', reply_markup=nav.main_Menu)
-#             else:
-#                 await bot.send_message(message.from_user.id, 'Я вас не понимаю')
+
 # @dp.message_handler()
 # async def info_command(message: types.Message):
 #     if message.text=='📕Информация':
