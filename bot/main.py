@@ -1,7 +1,6 @@
 import logging
 import asyncio
 
-from commands import chat_commands
 from aiogram import Bot, Dispatcher, executor, types
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from config import API_TOKEN
@@ -15,7 +14,9 @@ logging.basicConfig(format=u'%(filename)s [LINE:%(lineno)d] #%(levelname)-8s [%(
 
 async def on_startup(_):
     from chat_handlers.handlers import register_all_handlers
+    from commands.chat_commands import set_default_commands
     await register_all_handlers(dp)
+    await set_default_commands(bot)
     await bot.send_message(1130398207, text='Бот запущен')
 
 
@@ -27,14 +28,10 @@ dp = Dispatcher(bot=bot, loop=loop, storage=storage)
 db = Database('database/clients.db')
 
 
-async def set_all_default_commands(Bot):
-    await set_all_default_commands(bot)
-
-
 async def shutdown(dp):
     await storage.close()
-    await bot.close_bot()
-    await Database().close()
+    await bot.close()
+    await db.close()
 
 
 if __name__ == '__main__':
