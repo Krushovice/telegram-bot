@@ -3,7 +3,9 @@ import sqlite3 as sq
 
 class Database:
     def __init__(self, db_file):
-        self.conn = sq.connect('clients.db')
+        self.conn = sq.connect(db_file)
+        if not self.conn:
+            print('Failed to connect to database')
         self.cursor = self.conn.cursor()
         self.create_table()
 
@@ -47,3 +49,4 @@ class Database:
 
     def close(self):
         self.conn.close()
+        return self.conn

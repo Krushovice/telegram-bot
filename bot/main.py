@@ -9,7 +9,7 @@ from database.db import Database
 
 logging.basicConfig(format=u'%(filename)s [LINE:%(lineno)d] #%(levelname)-8s [%(asctime)s]  %(message)s',
                     level=logging.INFO,
-)
+                    )
 
 
 async def on_startup(_):
@@ -29,12 +29,14 @@ db = Database('database/clients.db')
 
 
 async def shutdown(dp):
-    await storage.close()
-    await bot.close()
-    await db.close()
-
+    try:
+        await storage.close()
+        await bot.close()
+    finally:
+        db.conn.close()
 
 if __name__ == '__main__':
     executor.start_polling(dp, on_startup=on_startup,
                             on_shutdown=shutdown,
-                            skip_updates=True)
+                            skip_updates=True
+                           )

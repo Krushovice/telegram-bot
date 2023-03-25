@@ -1,8 +1,9 @@
 import os
 import json
+import re
 
 from main import bot, dp, types, db
-from aiogram.types import Message, LabeledPrice, PreCheckoutQuery, Document, ReplyKeyboardHide
+from aiogram.types import Message, LabeledPrice, PreCheckoutQuery, Document, ReplyKeyboardRemove
 from aiogram.dispatcher.filters import Text, Command
 from aiogram.types.message import ContentType
 from config import PAYMENTS_TOKEN, item_url
@@ -17,11 +18,11 @@ async def start_menu(message: Message):
     await message.answer(MESSAGES['INFO'])
     if (not db.user_exists(message.from_user.id)):
         await bot.send_message(message.from_user.id,
-                               f"Здравствуйте, {message.from_user.first_name}.\nПожалуйста, укажите вашу почту",
-                               reply_markup=main_Menu)
+                               f"""Здравствуйте, {message.from_user.first_name}.Пожалуйста, укажите вашу почту""",
+                               reply_markup=main_Menu
+                               )
     else:
-        await message.bot.send_message(message.from_user.id, f'''Здравствуйте,
-                                      {message.from_user.first_name}''',
+        await message.bot.send_message(message.from_user.id, f'Здравствуйте, {message.from_user.first_name}!',
                                        reply_markup=main_Menu
                                        )
 
@@ -62,11 +63,23 @@ async def succesful_payment(message: Message):
                                """Неверная сумма платежа,
                                повторите попытку!""")
 
-@dp.message_handler(Text(equals=['@']))
-async def process_email(message: types.Message):
-    # Проверяем, что сообщение содержит корректный email
+
+@dp.message_handler(Text(equals=['user_btn', 'help_btn', 'join_btn']))
+async def bottons(message: Message):
+    await message.answer(message.text, reply_markup=ReplyKeyboardRemove())
+    await message.delete()
+
+
+@dp.message_handler(Text(equals=['📕 Помощь', '🆕 Карточка клиента', '💵 Получить услугу', '@']))
+async def kb_answers(message: Message):
+
     if "@" in message.text:
         email = message.text
+        # Проверяем, что введенная строка является корректным email
+        if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+            await message.answer("Некорректный email. Пожалуйста, введите корректный email.")
+            return
+
         user_id = message.from_user.id
         if db.user_exists(user_id):
             # Если пользователь уже существует, обновляем его email
@@ -82,23 +95,13 @@ async def process_email(message: types.Message):
                 broker=None
             )
             await message.answer("Спасибо! Я сохранил твой email.")
-    else:
-        # Сообщаем пользователю об ошибке
-        await message.answer("Кажется, это не email. Попробуй еще раз.")
 
-
-@dp.message_handler(Text(equals=['user_btn', 'help_btn', 'join_btn']))
-async def bottons(message: Message):
-    await message.answer(message.text, reply_markup=ReplyKeyboardHide())
-    await message.delete()
-
-
-@dp.message_handler(Text(equals=['📕 Помощь', '🆕 Карточка клиента', '💵 Получить услугу']))
-async def kb_answers(message: Message):
-    if message.text == '📕 Помощь':
+    elif message.text == '📕 Помощь':
         await message.answer(MESSAGES['INFO'])
+
     elif message.text == '🆕 Карточка клиента':
         await message.answer('Для дальнейших действий введите команду /broker и выберите вашего брокера из списка ')
+
     elif message.text == '💵 Получить услугу':
         await message.answer('Чтобы получить услугу, пожалуйста введите команду /buy и следуйте дайльнейшим инструкциям')
 
