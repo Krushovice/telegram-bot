@@ -2,7 +2,8 @@ import os
 import json
 import re
 
-from main import bot, dp, types, db
+from aiogram import types
+from main import bot, dp, db
 from aiogram.types import Message, LabeledPrice, PreCheckoutQuery, Document, ReplyKeyboardRemove
 from aiogram.dispatcher.filters import Text, Command
 from aiogram.types.message import ContentType
@@ -15,16 +16,21 @@ PRICES = [LabeledPrice(label='Справка', amount=1000000)]
 
 @dp.message_handler(Command('start'))
 async def start_menu(message: Message):
-    await message.answer(MESSAGES['INFO'])
+    await message.answer(MESSAGES['Hello'])
     if (not db.user_exists(message.from_user.id)):
         await bot.send_message(message.from_user.id,
-                               f"""Здравствуйте, {message.from_user.first_name}.Пожалуйста, укажите вашу почту""",
+                               f"Здравствуйте, {message.from_user.first_name}.Пожалуйста, укажите вашу почту",
                                reply_markup=main_Menu
                                )
     else:
         await message.bot.send_message(message.from_user.id, f'Здравствуйте, {message.from_user.first_name}!',
                                        reply_markup=main_Menu
                                        )
+
+
+@dp.message_handler(Command('help'))
+async def help_user(message: Message):
+    await message.answer(MESSAGES['Help'])
 
 
 @dp.message_handler(Command('buy'))
@@ -44,7 +50,21 @@ async def buy_process(message: Message):
                           prices=PRICES,
                           start_parameter='example',
                           payload='some_invoice'
-                          )
+                           )
+
+
+@dp.message_handler(Command('register'))
+async def check_user(message: Message):
+    if db.user_exists(message.from_user.id):
+        await message.answer('Вы уже зарегистрированы в базе данных!\n'
+                             'Пожалуйста, отправьте справку в формате .pdf\n'
+                             'а затем оплатите услугу по команде /buy'
+                             )
+    else:
+        await message.answer('Для того, чтобы зарегистрироваться,\n'
+                             'необходимо отправить в чат свою почту,\n'
+                             'а затем выбрать брокера /broker'
+                             )
 
 
 @dp.pre_checkout_query_handler(lambda query: True)
@@ -97,7 +117,7 @@ async def kb_answers(message: Message):
             await message.answer("Спасибо! Я сохранил твой email.")
 
     elif message.text == '📕 Помощь':
-        await message.answer(MESSAGES['INFO'])
+        await message.answer(MESSAGES['Help'])
 
     elif message.text == '🆕 Карточка клиента':
         await message.answer('Для дальнейших действий введите команду /broker и выберите вашего брокера из списка ')
@@ -111,69 +131,69 @@ async def broker_choice(message: Message):
     await message.reply('Пожалуйста, выберите вашего брокера из списка', reply_markup=Keyboard_inline)
 
 
-@dp.callback_query_handler(text=['bks', 'open', 'vtb', 'tnkf', 'alfa', 'freadom', 'finam', 'capital'])
+@dp.callback_query_handler(text=['bks', 'open', 'vtb', 'tnkf', 'alfa', 'freedom', 'finam', 'capital'])
 async def broker_value(call: types.CallbackQuery):
     if call.data == 'bks':
         broker = 'БКС Брокер.'
         message = (
-            """Вы выбрали БКС Брокер. Так держать!
-            Пожалуйста, отправьте выписку с вашего банка,
-            а далее воспользуйтесь командой /buy"""
+               "Вы выбрали БКС Брокер. Так держать!\n"
+               "Пожалуйста, отправьте выписку с вашего банка в формате .pdf,\n"
+               "а далее воспользуйтесь командой /buy"
         )
     elif call.data == 'open':
         broker = 'Открытие'
         message = (
-            """Вы выбрали Открытие.Так держать!
-            Пожалуйста, отправьте выписку с вашего банка,
-            а далее воспользуйтесь командой /buy"""
+                "Вы выбрали Открытие.Так держать!\n"
+                "Пожалуйста, отправьте выписку с вашего банка в формате pdf,\n"
+                "а далее воспользуйтесь командой /buy"
         )
     elif call.data == 'vtb':
         broker = 'ВТБ Капитал Форекс'
         message = (
-            """Вы выбрали ВТБ Капитал Форекс.Так держать!
-            Пожалуйста, отправьте выписку с вашего банка,
-            а далее воспользуйтесь командой /buy"""
+               "Вы выбрали ВТБ Капитал Форекс.Так держать!\n"
+               "Пожалуйста, отправьте выписку с вашего банка в формате .pdf,\n"
+               "а далее воспользуйтесь командой /buy"
         )
     elif call.data == 'tnkf':
         broker = 'Тинькофф Инвестиции'
         message = (
-            """Вы выбрали Тинькофф Инвестиции.Так держать!
-            Пожалуйста, отправьте выписку с вашего банка,
-            а далее воспользуйтесь командой /buy"""
+              "Вы выбрали Тинькофф Инвестиции.Так держать!\n"
+              "Пожалуйста, отправьте выписку с вашего банка в формате .pdf,\n"
+              "а далее воспользуйтесь командой /buy"
         )
     elif call.data == 'alfa':
         broker = 'Альфа Инвестиции'
         message = (
-            """Вы выбрали Альфа Инвестиции.Так держать!
-            Пожалуйста, отправьте выписку с вашего банка,
-            а далее воспользуйтесь командой /buy"""
+              "Вы выбрали Альфа Инвестиции.Так держать!\n"
+              "Пожалуйста, отправьте выписку с вашего банка в формате .pdf,\n"
+              "а далее воспользуйтесь командой /buy"
         )
-    elif call.data == 'freadom':
+    elif call.data == 'freedom':
         broker = 'Фридом Финанс'
         message = (
-            """Вы выбрали Фридом Финанс.Так держать!
-            Пожалуйста, отправьте выписку с вашего банка,
-            а далее воспользуйтесь командой /buy"""
+             "Вы выбрали Фридом Финанс.Так держать!\n"
+             "Пожалуйста, отправьте выписку с вашего банка в формате .pdf,\n"
+             "а далее воспользуйтесь командой /buy"
         )
     elif call.data == 'finam':
         broker = 'Финам'
         message = (
-            """Вы выбрали Финам.Так держать!
-            Пожалуйста, отправьте выписку с вашего банка,
-            а далее воспользуйтесь командой /buy"""
+             "Вы выбрали Финам.Так держать!\n"
+             "Пожалуйста, отправьте выписку с вашего банка в формате .pdf,\n"
+             "а далее воспользуйтесь командой /buy"
         )
     elif call.data == 'capital':
         broker = 'IT Capital'
         message = (
-            """Вы выбрали IT Capital.Так держать!
-            Пожалуйста, отправьте выписку с вашего банка,
-            а далее воспользуйтесь командой /buy"""
+             "Вы выбрали IT Capital.Так держать!\n"
+             "Пожалуйста, отправьте выписку с вашего банка в формате .pdf,\n"
+             "а далее воспользуйтесь командой /buy"
         )
     db.insert_broker(call.from_user.id, broker)
     await call.message.answer(message)
 
 
-STATE_PATH = 'bot/info.py'
+STATE_PATH = '../info.py'
 
 # Загружаем словарь с ссылками на файлы из файла info.py, если он существует
 if os.path.isfile(STATE_PATH):
@@ -210,9 +230,10 @@ async def handle_pdf(message: Message):
 async def register_all_handlers(dp):
     dp.register_message_handler(start_menu, commands=['start'])
     dp.register_message_handler(buy_process, commands=['buy'])
+    dp.register_message_handler(help_user, commands=['help'])
+    dp.register_message_handler(check_user, Commands=['register'])
     dp.register_pre_checkout_query_handler(checkout_process)
     dp.register_message_handler(succesful_payment, content_types=types.ContentType.SUCCESSFUL_PAYMENT)
-    dp.register_message_handler(process_email, content_types=types.ContentType.TEXT)
     dp.register_message_handler(bottons, Text(equals=['user_btn', 'help_btn', 'join_btn']))
     dp.register_message_handler(kb_answers, Text(equals=['📕 Помощь', '🆕 Карточка клиента', '💵 Получить услугу']))
     dp.register_message_handler(broker_choice, commands=['broker'])

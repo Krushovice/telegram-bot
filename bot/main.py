@@ -1,7 +1,7 @@
 import logging
 import asyncio
 
-from aiogram import Bot, Dispatcher, executor, types
+from aiogram import Bot, Dispatcher, executor
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from config import API_TOKEN
 from database.db import Database
@@ -31,7 +31,7 @@ db = Database('database/clients.db')
 async def shutdown(dp):
     try:
         await storage.close()
-        await bot.close()
+        await bot.stop_polling()
     finally:
         db.conn.close()
 

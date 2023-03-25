@@ -9,7 +9,7 @@ async def set_default_commands(Bot):
             BotCommand('help', 'Помощь'),
             BotCommand('buy', 'Купить справку'),
             BotCommand('register', 'Регистрация пользователя'),
-
+            BotCommand('broker', 'Выбрать брокера')
         ],
         scope=BotCommandScopeDefault()
     )
