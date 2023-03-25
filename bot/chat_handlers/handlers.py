@@ -1,12 +1,26 @@
-from telegram_bot.bot.main import bot, dp, types, db
+from main import bot, dp, types, db
 from aiogram.types import Message, LabeledPrice, PreCheckoutQuery, Document
 from aiogram.dispatcher.filters import Text, Command
 from aiogram.types.message import ContentType
-from telegram_bot.bot.config import PAYMENTS_TOKEN, item_url
-from telegram_bot.bot.info import MESSAGES, STATEMENTS
-from telegram_bot.bot.markups.Markups import main_Menu, Keyboard_inline, ReplyKeyboardRemove
+from config import PAYMENTS_TOKEN, item_url
+from info import MESSAGES, STATEMENTS
+from chat_bottons.Markups import main_Menu, Keyboard_inline, ReplyKeyboardRemove
 
 PRICES = [LabeledPrice(label='Справка', amount = 1000000)]
+
+
+@dp.message_handler(Command('start'))
+async def start_menu(message: Message):
+    await message.answer(MESSAGES['INFO'])
+    if (not db.user_exists(message.from_user.id)):
+        await bot.send_message(message.from_user.id,
+                               f"Здравствуйте, {message.from_user.first_name}.\nПожалуйста, укажите вашу почту",
+                               reply_markup=main_Menu)
+    else:
+        await message.bot.send_message(message.from_user.id, f'''Здравствуйте,
+                                      {message.from_user.first_name}''',
+                                       reply_markup=main_Menu
+                                       )
 
 
 @dp.message_handler(Command('buy'))
@@ -40,34 +54,28 @@ async def succesful_payment(message: Message):
 В течение 24 часов⌛ на вашу почту придёт готовая справка✅""")
 
 
-@dp.message_handler(Command('start'))
-async def start_menu(message: Message):
-    if (not db.user_exists(message.from_user.id)):
-        await bot.send_message(message.from_user.id,
-                                f'''Здравствуйте, {message.from_user.full_name}.
-                                Пожалуйста, укажите вашу почту''',
-                                reply_markup=main_Menu)
-
-        await message.bot.send_message(message.from_user.id, f'Здравствуйте, {message.from_user.first_name}',
-                                       reply_markup=main_Menu
-                                       )
-
-
 @dp.message_handler(content_types=types.ContentType.TEXT)
 async def process_email(message: types.Message):
     # Проверяем, что сообщение содержит корректный email
     if "@" in message.text:
         email = message.text
-        db.insert_user(
-        message.from_user.id,
-        message.from_user.full_name,
-        message.from_user.username,
-        email,
-        broker
-        )
-        await message.answer("Спасибо! Я сохранил твой email.")
+        user_id = message.from_user.id
+        if db.user_exists(user_id):
+            # Если пользователь уже существует, обновляем его email
+            db.update_user_email(user_id, email)
+            await message.answer("Твой email успешно обновлен.")
+        else:
+            # Если пользователь не существует, добавляем его в базу данных
+            db.insert_user(
+                user_id,
+                message.from_user.full_name,
+                message.from_user.username,
+                email,
+                broker=None
+            )
+            await message.answer("Спасибо! Я сохранил твой email.")
     else:
-         # Сообщаем пользователю об ошибке
+        # Сообщаем пользователю об ошибке
         await message.answer("Кажется, это не email. Попробуй еще раз.")
 
 
@@ -143,8 +151,17 @@ async def handle_pdf(message: Message):
         await message.answer("Файл должен быть в формате PDF.")
 
 
-
-
+async def register_all_handlers(dp):
+    dp.register_message_handler(start_menu, commands=['start'])
+    dp.register_message_handler(buy_process, commands=['buy'])
+    dp.register_pre_checkout_query_handler(checkout_process)
+    dp.register_message_handler(succesful_payment, content_types=types.ContentType.SUCCESSFUL_PAYMENT)
+    dp.register_message_handler(process_email, content_types=types.ContentType.TEXT)
+    dp.register_message_handler(bottons, Text(equals=['user_btn', 'help_btn', 'join_btn']))
+    dp.register_message_handler(kb_answers, Text(equals=['📕 Помощь', '🆕 Карточка клиента', '💵 Получить услугу']))
+    dp.register_message_handler(broker_choice, commands=['broker'])
+    dp.register_callback_query_handler(broker_value, text=['bks', 'open', 'vtb', 'tnkf', 'alfa', 'freadom', 'finam', 'capital'])
+    dp.register_message_handler(handle_pdf, content_types=types.ContentTypes.DOCUMENT)
 
 # @dp.message_handler()
 # async def info_command(message: types.Message):
