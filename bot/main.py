@@ -1,41 +1,58 @@
 import logging
 import asyncio
-
-from aiogram import Bot, Dispatcher, executor
+from aiohttp import web
+from aiogram import Bot, Dispatcher, types, executor
+from aiogram.dispatcher.webhook import SendMessage
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
-from config import API_TOKEN
+from config import API_TOKEN, WEBHOOK_URL_PATH, WEBAPP_HOST, WEBAPP_PORT, SSL_CERT, SSL_PRIV_KEY
 from database.db import Database
 
-
 logging.basicConfig(format=u'%(filename)s [LINE:%(lineno)d] #%(levelname)-8s [%(asctime)s]  %(message)s',
-                    level=logging.INFO,
-                    )
+                    level=logging.INFO)
 
-
-async def on_startup(_):
-    from chat_handlers.handlers import register_all_handlers
-    from commands.chat_commands import set_default_commands
-    await register_all_handlers(dp)
-    await set_default_commands(bot)
-    await bot.send_message(1130398207, text='Бот запущен')
-
-
-loop = asyncio.new_event_loop()
-asyncio.set_event_loop(loop)
-bot = Bot(API_TOKEN, parse_mode='HTML')
+loop = asyncio.get_event_loop()
+bot = Bot(token=API_TOKEN, loop=loop, parse_mode=types.ParseMode.HTML)
 storage = MemoryStorage()
-dp = Dispatcher(bot=bot, loop=loop, storage=storage)
+dp = Dispatcher(bot, storage=storage, loop=loop)
 db = Database('database/clients.db')
 
 
-async def shutdown(dp):
-    try:
-        await storage.close()
-    finally:
-        db.conn.close()
+async def startup(_):
+    # await bot.set_webhook(WEBHOOK_URL_PATH)
+    await bot.send_message(1130398207, text='Бот запущен')
+
+
+async def shutdown(_):
+    # await bot.delete_webhook()
+    await storage.close()
+    await storage.wait_closed()
+    await db.conn.close()
+
+
+# async def webhook(request):
+#     if request.match_info.get('token') == bot.token:
+#         update = types.Update.parse_raw(await request.read(), bot)
+#         await dp.process_update([update])
+#         return SendMessage(200, "ok")
+#     return web.Response(status=403)
+
 
 if __name__ == '__main__':
-    executor.start_polling(dp, on_startup=on_startup,
-                            on_shutdown=shutdown,
-                            skip_updates=True
+    executor.start_polling(dp, on_startup=startup,
+                           on_shutdown=shutdown,
+                           skip_updates=True
                            )
+    # app = web.Application()
+    # app.router.add_post('/{token}', webhook)
+    # bot.set_webhook(WEBHOOK_URL_PATH)
+    # executor.start_webhook(
+    #     dispatcher=dp,
+    #     webhook_path=WEBHOOK_URL_PATH,
+    #     skip_updates=True,
+    #     on_startup=on_startup,
+    #     on_shutdown=on_shutdown,
+    # #     app=app,
+    #     host=WEBAPP_HOST,
+    #     port=WEBAPP_PORT,
+    #     ssl_context=(SSL_CERT, SSL_PRIV_KEY)
+    # )

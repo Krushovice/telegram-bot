@@ -2,6 +2,7 @@ import os
 import json
 import re
 
+from typing import match
 from aiogram import types
 from main import bot, dp, db
 from aiogram.types import Message, LabeledPrice, PreCheckoutQuery, Document
@@ -139,62 +140,36 @@ async def broker_choice(message: Message):
 
 @dp.callback_query_handler(text=['bks', 'open', 'vtb', 'tnkf', 'alfa', 'freedom', 'finam', 'capital'])
 async def broker_value(call: types.CallbackQuery):
-    if call.data == 'bks':
-        broker = 'БКС Брокер.'
-        message = (
-               "Вы выбрали БКС Брокер. Так держать!\n"
-               "Пожалуйста, отправьте выписку с вашего банка в формате .pdf,\n"
-               "а далее воспользуйтесь командой /buy"
-        )
-    elif call.data == 'open':
-        broker = 'Открытие'
-        message = (
-                "Вы выбрали Открытие.Так держать!\n"
-                "Пожалуйста, отправьте выписку с вашего банка в формате pdf,\n"
-                "а далее воспользуйтесь командой /buy"
-        )
-    elif call.data == 'vtb':
-        broker = 'ВТБ Капитал Форекс'
-        message = (
-               "Вы выбрали ВТБ Капитал Форекс.Так держать!\n"
-               "Пожалуйста, отправьте выписку с вашего банка в формате .pdf,\n"
-               "а далее воспользуйтесь командой /buy"
-        )
-    elif call.data == 'tnkf':
-        broker = 'Тинькофф Инвестиции'
-        message = (
-              "Вы выбрали Тинькофф Инвестиции.Так держать!\n"
-              "Пожалуйста, отправьте выписку с вашего банка в формате .pdf,\n"
-              "а далее воспользуйтесь командой /buy"
-        )
-    elif call.data == 'alfa':
-        broker = 'Альфа Инвестиции'
-        message = (
-              "Вы выбрали Альфа Инвестиции.Так держать!\n"
-              "Пожалуйста, отправьте выписку с вашего банка в формате .pdf,\n"
-              "а далее воспользуйтесь командой /buy"
-        )
-    elif call.data == 'freedom':
-        broker = 'Фридом Финанс'
-        message = (
-             "Вы выбрали Фридом Финанс.Так держать!\n"
-             "Пожалуйста, отправьте выписку с вашего банка в формате .pdf,\n"
-             "а далее воспользуйтесь командой /buy"
-        )
-    elif call.data == 'finam':
-        broker = 'Финам'
-        message = (
-             "Вы выбрали Финам.Так держать!\n"
-             "Пожалуйста, отправьте выписку с вашего банка в формате .pdf,\n"
-             "а далее воспользуйтесь командой /buy"
-        )
-    elif call.data == 'capital':
-        broker = 'IT Capital'
-        message = (
-             "Вы выбрали IT Capital.Так держать!\n"
-             "Пожалуйста, отправьте выписку с вашего банка в формате .pdf,\n"
-             "а далее воспользуйтесь командой /buy"
-        )
+    match call.data:
+        case 'bks':
+            broker = 'БКС Брокер'
+
+        case 'open':
+            broker = 'Открытие'
+
+        case 'vtb':
+            broker = 'ВТБ Капитал Форекс'
+
+        case 'tnkf':
+            broker = 'Тинькофф Инвестиции'
+
+        case 'alfa':
+            broker = 'Альфа Инвестиции'
+
+        case 'freedom':
+            broker = 'Фридом Финанс'
+
+        case 'finam':
+            broker = 'Финам'
+
+        case 'capital':
+            broker = 'IT Capital'
+
+    message = (
+        f"Вы выбрали {broker}. Так держать!\n"
+        "Пожалуйста, отправьте выписку с вашего банка в формате .pdf,\n"
+        "а далее воспользуйтесь командой /buy"
+    )
     db.insert_broker(call.from_user.id, broker)
     await call.message.answer(message)
 
