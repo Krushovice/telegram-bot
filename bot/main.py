@@ -31,7 +31,6 @@ db = Database('database/clients.db')
 async def shutdown(dp):
     try:
         await storage.close()
-        await bot.stop_polling()
     finally:
         db.conn.close()
 

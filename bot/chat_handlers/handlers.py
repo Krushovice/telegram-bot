@@ -4,14 +4,20 @@ import re
 
 from aiogram import types
 from main import bot, dp, db
-from aiogram.types import Message, LabeledPrice, PreCheckoutQuery, Document, ReplyKeyboardRemove
+from aiogram.types import Message, LabeledPrice, PreCheckoutQuery, Document
 from aiogram.dispatcher.filters import Text, Command
+from aiogram.dispatcher.filters.state import State, StatesGroup
 from aiogram.types.message import ContentType
 from config import PAYMENTS_TOKEN, item_url
-from info import MESSAGES, STATEMENTS
+from info import MESSAGES
 from chat_bottons.Markups import main_Menu, Keyboard_inline
 
 PRICES = [LabeledPrice(label='Справка', amount=1000000)]
+
+
+# class UserState(StatesGroup):
+#     email = State()
+#     broker = State()
 
 
 @dp.message_handler(Command('start'))
@@ -86,7 +92,7 @@ async def succesful_payment(message: Message):
 
 @dp.message_handler(Text(equals=['user_btn', 'help_btn', 'join_btn']))
 async def bottons(message: Message):
-    await message.answer(message.text, reply_markup=ReplyKeyboardRemove())
+    await message.answer(message.text)
     await message.delete()
 
 
@@ -193,36 +199,48 @@ async def broker_value(call: types.CallbackQuery):
     await call.message.answer(message)
 
 
-STATE_PATH = '../info.py'
-
-# Загружаем словарь с ссылками на файлы из файла info.py, если он существует
-if os.path.isfile(STATE_PATH):
-    with open(STATE_PATH, 'r') as f:
-        STATEMENTS.update(json.load(f))
+USERS_STATEMENTS_PATH = 'users_statements.json'
+if os.path.isfile(USERS_STATEMENTS_PATH):
+    with open(USERS_STATEMENTS_PATH, 'r') as f:
+        USERS_STATEMENTS = json.load(f)
 else:
-    STATEMENTS = {}
+    USERS_STATEMENTS = {}
 
 
+# Обработчик для загрузки файлов
 @dp.message_handler(content_types=types.ContentTypes.DOCUMENT)
 async def handle_pdf(message: Message):
     if message.document.mime_type == 'application/pdf':
         # Проверяем, что загруженный файл имеет расширение .pdf
         file_id = message.document.file_id
         file_name = message.document.file_name
-        if message.document.file_unique_id in STATEMENTS:
+        user_fullname = message.from_user.get.full_name
+        user_id = message.from_user.id
+
+        # Получаем словарь с информацией о пользователе и его файлов, если он существует, иначе создаем пустой словарь
+        user_info = USERS_STATEMENTS.get(user_id, {'fullname': user_fullname, 'files': {}})
+
+        # Проверяем, что пользователь не загружал ранее этот файл
+        if file_name in user_info['files']:
             await message.answer("Вы уже загружали этот файл.")
             return
-        # Сохраняем файл на диск в директорию /home/krushovice/statements с именем, основанным на полном имени пользователя
-        user_full_name = message.from_user.full_name
-        file_path = f"/home/krushovice/statements/{user_full_name}_{file_name}"
+
+        # Создаем директорию для пользователя, если она не существует
+        user_dir = f"/home/krushovice/statements/{user_fullname}({user_id})"
+        os.makedirs(user_dir, exist_ok=True)
+
+        # Сохраняем файл на диск в директорию пользователя с именем, основанным на имени файла
+        file_path = os.path.join(user_dir, file_name)
         await bot.download_file_by_id(file_id, file_path)
 
-        # Добавляем ссылку на файл в словарь и сохраняем словарь в файл info.py
-        STATEMENTS[message.from_user.id] = file_path
-        with open(STATE_PATH, 'w') as f:
-            json.dump(STATEMENTS, f)
+        # Обновляем словарь с информацией о пользователе и его файлов и сохраняем его в файл
+        user_info['files'][file_name] = file_path
+        USERS_STATEMENTS[user_id] = user_info
+        with open(USERS_STATEMENTS_PATH, 'w') as f:
+            json.dump(USERS_STATEMENTS, f)
 
         await message.answer("Файл успешно сохранен.")
+
     else:
         await message.answer("Файл должен быть в формате PDF.")
 
@@ -231,7 +249,7 @@ async def register_all_handlers(dp):
     dp.register_message_handler(start_menu, commands=['start'])
     dp.register_message_handler(buy_process, commands=['buy'])
     dp.register_message_handler(help_user, commands=['help'])
-    dp.register_message_handler(check_user, Commands=['register'])
+    dp.register_message_handler(check_user, commands=['register'])
     dp.register_pre_checkout_query_handler(checkout_process)
     dp.register_message_handler(succesful_payment, content_types=types.ContentType.SUCCESSFUL_PAYMENT)
     dp.register_message_handler(bottons, Text(equals=['user_btn', 'help_btn', 'join_btn']))
