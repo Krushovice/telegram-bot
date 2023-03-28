@@ -18,41 +18,44 @@ db = Database('database/clients.db')
 
 
 async def startup(_):
-    # await bot.set_webhook(WEBHOOK_URL_PATH)
+    await bot.set_webhook(WEBHOOK_URL_PATH)
     await bot.send_message(1130398207, text='Бот запущен')
 
 
 async def shutdown(_):
-    # await bot.delete_webhook()
-    await storage.close()
-    await storage.wait_closed()
-    await db.conn.close()
+    try:
+        await bot.delete_webhook()
+        await storage.close()
+        await storage.wait_closed()
+        await db.conn.close()
+    finally:
+        await bot.session.close()
 
 
-# async def webhook(request):
-#     if request.match_info.get('token') == bot.token:
-#         update = types.Update.parse_raw(await request.read(), bot)
-#         await dp.process_update([update])
-#         return SendMessage(200, "ok")
-#     return web.Response(status=403)
+async def webhook(request):
+    if request.match_info.get('token') == API_TOKEN:
+        update = types.Update.parse_raw(await request.read(), bot)
+        await dp.process_update([update])
+        return SendMessage(200, "ok")
+    return web.Response(status=403)
 
 
 if __name__ == '__main__':
-    executor.start_polling(dp, on_startup=startup,
-                           on_shutdown=shutdown,
-                           skip_updates=True
-                           )
-    # app = web.Application()
-    # app.router.add_post('/{token}', webhook)
-    # bot.set_webhook(WEBHOOK_URL_PATH)
-    # executor.start_webhook(
-    #     dispatcher=dp,
-    #     webhook_path=WEBHOOK_URL_PATH,
-    #     skip_updates=True,
-    #     on_startup=on_startup,
-    #     on_shutdown=on_shutdown,
-    # #     app=app,
-    #     host=WEBAPP_HOST,
-    #     port=WEBAPP_PORT,
-    #     ssl_context=(SSL_CERT, SSL_PRIV_KEY)
-    # )
+    # executor.start_polling(dp, on_startup=startup,
+    #                        on_shutdown=shutdown,
+    #                        skip_updates=True
+    #                        )
+    token = API_TOKEN
+    app = web.Application()
+    app.router.add_post(f'/{token}', webhook)
+    bot.set_webhook(WEBHOOK_URL_PATH)
+    executor.start_webhook(
+        dispatcher=dp,
+        webhook_path=WEBHOOK_URL_PATH,
+        skip_updates=True,
+        on_startup=startup,
+        on_shutdown=shutdown,
+        app=app,
+        host=WEBAPP_HOST,
+        port=WEBAPP_PORT
+    )
